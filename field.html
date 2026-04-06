@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AR-поле | ХАМИР.VR</title>
+
+  <script>
+    /* Patch camera HD before A-Frame */
+    (function(){
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const og = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = c => {
+          if(c&&c.video) c.video={facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}};
+          return og(c);
+        };
+      }
+    })();
+  </script>
+
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root{--em:#059669;--cy:#0891b2;--bg:#0f172a;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:transparent;overflow:hidden;font-family:system-ui,sans-serif;color:#f8fafc;}
+
+    .glass{background:rgba(15,23,42,.7);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.08);}
+
+    /* Header */
+    #hdr{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:rgba(15,23,42,.8);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.06);}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;}
+    .logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#059669,#0891b2);display:flex;align-items:center;justify-content:center;}
+    .logo-text{font-weight:700;font-size:.95rem;color:#fff;letter-spacing:.07em;}
+    .badge{font-size:.6rem;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);color:#22d3ee;border-radius:9999px;padding:3px 10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+    .btn-back{display:flex;align-items:center;gap:5px;background:rgba(15,23,42,.6);border:1px solid rgba(100,116,139,.4);color:#94a3b8;border-radius:8px;padding:5px 12px;font-size:.68rem;font-weight:600;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;}
+
+    /* Splash */
+    #splash{position:fixed;inset:0;z-index:300;background:linear-gradient(135deg,#020617,#064e3b,#083344);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;transition:opacity .5s;}
+    #splash::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(34,211,238,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.07) 1px,transparent 1px);background-size:40px 40px;z-index:-1;}
+    #splash.hide{opacity:0;pointer-events:none;}
+    .icon-bounce{width:68px;height:68px;border-radius:18px;background:linear-gradient(135deg,#059669,#0891b2);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 0 30px rgba(8,145,178,.4);animation:bounce 2s ease-in-out infinite;}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    .btn-glow{position:relative;background:linear-gradient(135deg,var(--em),var(--cy));border-radius:9999px;color:#fff;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;cursor:pointer;transition:transform .3s;z-index:1;}
+    .btn-glow::before{content:'';position:absolute;inset:-2px;background:linear-gradient(135deg,#34d399,#22d3ee,#34d399);border-radius:9999px;z-index:-1;filter:blur(12px);opacity:.6;animation:glow 3s linear infinite;background-size:200%;}
+    .btn-glow:hover{transform:scale(1.05);}
+    @keyframes glow{0%,100%{background-position:0% 50%;opacity:.5}50%{background-position:100% 50%;opacity:.8}}
+
+    /* Scan frame */
+    #scan-wrap{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:clamp(200px,65vw,300px);height:clamp(130px,40vw,190px);pointer-events:none;transition:opacity .6s;}
+    #scan-wrap.hide{opacity:0;}
+    .c{position:absolute;width:26px;height:26px;border-color:rgba(34,211,238,.9);border-style:solid;box-shadow:0 0 10px rgba(34,211,238,.5);}
+    .c.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 0;}
+    .c.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0;}
+    .c.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px;}
+    .c.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0;}
+    .sl{position:absolute;left:4px;right:4px;height:2px;background:linear-gradient(90deg,transparent,rgba(34,211,238,.9),transparent);animation:scan 2s ease-in-out infinite;box-shadow:0 0 8px #22d3ee;}
+    @keyframes scan{0%{top:4px;opacity:1}90%{top:calc(100% - 6px);opacity:.3}100%{top:4px;opacity:1}}
+
+    /* Pill */
+    #pill{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);border-radius:9999px;padding:10px 24px;font-size:.8rem;display:flex;align-items:center;gap:10px;white-space:nowrap;transition:all .4s;}
+    #pill.found{border-color:rgba(52,211,153,.5)!important;box-shadow:0 0 20px rgba(52,211,153,.2);background:rgba(5,150,105,.2)!important;}
+    .dot{width:8px;height:8px;border-radius:50%;background:#22d3ee;animation:blink 1.4s ease-in-out infinite;box-shadow:0 0 8px #22d3ee;}
+    #pill.found .dot{background:#34d399;animation:none;box-shadow:0 0 8px #34d399;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* Explore hint */
+    #explore-hint{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:150;background:rgba(5,150,105,.25);border:1px solid rgba(52,211,153,.4);backdrop-filter:blur(10px);border-radius:12px;padding:10px 20px;font-size:.75rem;color:#6ee7b7;text-align:center;display:none;max-width:280px;line-height:1.5;}
+    #explore-hint.show{display:block;}
+
+    /* Species bar */
+    #sp-bar{position:fixed;bottom:0;left:0;right:0;z-index:150;display:none;justify-content:space-around;padding:10px 12px 20px;background:rgba(10,18,38,.88);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.07);}
+    #sp-bar.show{display:flex;}
+    .sp{display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 14px;cursor:pointer;transition:.25s;flex:1;margin:0 4px;}
+    .sp:hover,.sp.on{border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.07);}
+    .sp .em{font-size:1.4rem;}
+    .sp .nm{font-size:.58rem;color:#94a3b8;text-align:center;line-height:1.3;}
+    .sp.on .nm{color:#22d3ee;}
+
+    /* Error */
+    #err{display:none;position:fixed;inset:0;z-index:400;background:#0f172a;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;}
+    #err.show{display:flex;}
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="hdr">
+  <a href="./index.html" class="logo">
+    <div class="logo-icon">
+      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <span class="logo-text">ХАМИР.VR</span>
+  </a>
+  <span class="badge">🌿 AR-поле</span>
+  <a href="./index.html" class="btn-back">
+    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    Назад
+  </a>
+</div>
+
+<!-- A-Frame Scene -->
+<a-scene
+  id="scene"
+  mindar-image="imageTargetSrc: ./markers/targets.mind; maxTrack: 4; filterMinCF:0.001; filterBeta:0.1; missTolerance:5; uiLoading:no; uiScanning:no; uiError:no;"
+  color-space="sRGB"
+  renderer="colorManagement:true,physicallyCorrectLights; antialias:true; precision:medium"
+  vr-mode-ui="enabled:false"
+  device-orientation-permission-ui="enabled:false">
+
+  <a-assets>
+    <!-- Background field image (Optional now) -->
+    <img id="field-img" src="./markers/target.png"/>
+  </a-assets>
+
+  <!-- Camera: look-controls disabled initially — MindAR controls it -->
+  <a-camera id="cam" position="0 0 0" look-controls="enabled:false" wasd-controls="enabled:false"></a-camera>
+
+  <!-- ═══ 5 TARGETS (Распределённая физическая система) ═══ -->
+  
+  <!-- TOЧКА 0 (Картинка угла 1) -> Сибирка -->
+  <a-entity id="target-0" class="mind-tgt" mindar-image-target="targetIndex:0">
+    <a-light type="ambient" color="#fff" intensity="0.7"></a-light>
+    <a-light type="directional" color="#fff" intensity="0.9" position="1 3 1"></a-light>
+    
+    <a-entity id="m1" class="mdl" position="0 0.1 0">
+      <a-cylinder position="0 0.07 0" height="0.13" radius="0.018" color="#7c4a00" material="roughness:.9"></a-cylinder>
+      <a-cone position="0 0.16 0" height="0.12" radius-bottom="0.08" radius-top="0" color="#16a34a" material="roughness:.7;emissive:#16a34a;emissiveIntensity:.2">
+        <a-animation attribute="rotation" to="0 360 0" dur="9000" repeat="indefinite" easing="linear"></a-animation>
+      </a-cone>
+      <a-cone position="0 0.21 0" height="0.09" radius-bottom="0.06" radius-top="0" color="#15803d"></a-cone>
+      <a-cone position="0 0.26 0" height="0.07" radius-bottom="0.04" radius-top="0" color="#166534"></a-cone>
+      <a-animation attribute="scale" from="0 0 0" to="1 1 1" dur="700" easing="ease-out"></a-animation>
+      <a-text value="Сибирка\nалтайская" position="0 0.38 0" align="center" scale="0.17 0.17 0.17" color="#6ee7b7"></a-text>
+    </a-entity>
+  </a-entity>
+
+  <!-- TOЧКА 1 (Картинка угла 2) -> Кандык -->
+  <a-entity id="target-1" class="mind-tgt" mindar-image-target="targetIndex:1">
+    <a-light type="ambient" color="#fff" intensity="0.7"></a-light>
+    <a-light type="directional" color="#fff" intensity="0.9" position="1 3 1"></a-light>
+
+    <a-entity id="m2" class="mdl" position="0 0.1 0">
+      <a-cylinder position="0 0.06 0" height="0.12" radius="0.008" color="#65a30d"></a-cylinder>
+      <a-cone position="0 0.14 0" height="0.068" radius-bottom="0.055" radius-top="0.025" color="#f9a8d4" rotation="-25 0 0" material="roughness:.5;emissive:#f9a8d4;emissiveIntensity:.2">
+        <a-animation attribute="rotation" from="-25 0 0" to="-25 360 0" dur="5500" repeat="indefinite" easing="linear"></a-animation>
+      </a-cone>
+      <a-sphere position="0 0.175 0" radius="0.025" color="#fde047" material="emissive:#fde047;emissiveIntensity:.6"></a-sphere>
+      <a-animation attribute="scale" from="0 0 0" to="1 1 1" dur="700" delay="200" easing="ease-out"></a-animation>
+      <a-text value="Кандык\nсибирский" position="0 0.3 0" align="center" scale="0.17 0.17 0.17" color="#f9a8d4"></a-text>
+    </a-entity>
+  </a-entity>
+
+  <!-- TOЧКА 2 (Картинка угла 3) -> Осман -->
+  <a-entity id="target-2" class="mind-tgt" mindar-image-target="targetIndex:2">
+    <a-light type="ambient" color="#fff" intensity="0.7"></a-light>
+    <a-light type="directional" color="#fff" intensity="0.9" position="1 3 1"></a-light>
+
+    <a-entity id="m3" class="mdl" position="0 0.1 0">
+      <a-entity position="0 0.08 0">
+        <a-sphere position="0 0 0" scale="0.1 0.05 0.05" color="#3b82f6" material="roughness:.4;metalness:.3;emissive:#3b82f6;emissiveIntensity:.2">
+          <a-animation attribute="rotation" from="0 -15 3" to="0 15 -3" dir="alternate" dur="1100" repeat="indefinite" easing="ease-in-out"></a-animation>
+        </a-sphere>
+        <a-cone position="-0.1 0 0" height="0.06" radius-bottom="0.04" radius-top="0" rotation="0 0 -90" color="#1d4ed8"></a-cone>
+        <a-cone position="0.01 0.04 0" height="0.035" radius-bottom="0.025" radius-top="0" color="#60a5fa"></a-cone>
+        <a-sphere position="0.075 0.01 0.032" radius="0.007" color="white"></a-sphere>
+        <a-sphere position="0.079 0.01 0.034" radius="0.004" color="#1e293b"></a-sphere>
+      </a-entity>
+      <a-animation attribute="scale" from="0 0 0" to="1 1 1" dur="700" delay="400" easing="ease-out"></a-animation>
+      <a-text value="Алтайский\nосман" position="0 0.22 0" align="center" scale="0.17 0.17 0.17" color="#93c5fd"></a-text>
+    </a-entity>
+  </a-entity>
+
+  <!-- TOЧКА 3 (Картинка угла 4) -> Резерв -->
+  <a-entity id="target-3" class="mind-tgt" mindar-image-target="targetIndex:3">
+    <a-box position="0 0.05 0" depth="0.1" height="0.1" width="0.1" color="#8b5cf6" material="opacity: 0.8"></a-box>
+    <a-text value="Точка 4\n(резерв)" position="0 0.2 0" align="center" scale="0.2 0.2 0.2" color="#c4b5fd"></a-text>
+  </a-entity>
+
+  <!-- TOЧКА 4 (Центральная картинка) -> Резерв -->
+  <a-entity id="target-4" class="mind-tgt" mindar-image-target="targetIndex:4">
+    <a-sphere position="0 0.05 0" radius="0.06" color="#f59e0b" material="opacity: 0.8"></a-sphere>
+    <a-text value="Центр\n(резерв)" position="0 0.2 0" align="center" scale="0.2 0.2 0.2" color="#fcd34d"></a-text>
+  </a-entity>
+
+</a-scene>
+
+<!-- Scan frame -->
+<div id="scan-wrap">
+  <div class="c tl"></div><div class="c tr"></div>
+  <div class="c bl"></div><div class="c br"></div>
+  <div class="sl"></div>
+</div>
+
+<!-- Status pill -->
+<div id="pill" class="glass">
+  <div class="dot"></div>
+  <span id="ptxt">Наведите камеру на поле-маркер</span>
+</div>
+
+<!-- Explore hint (shown after freeze) -->
+<div id="explore-hint">
+  ✅ Поле найдено!<br>
+  <span style="color:#a7f3d0;">Наклоняйте телефон и смотрите вокруг — модели живут в 3D!</span>
+</div>
+
+<!-- Species bar (shown after freeze) -->
+<div id="sp-bar">
+  <div class="sp" id="s1" onclick="selectSp(1)">
+    <span class="em">🌿</span>
+    <span class="nm">Сибирка<br>алтайская</span>
+  </div>
+  <div class="sp" id="s2" onclick="selectSp(2)">
+    <span class="em">🌸</span>
+    <span class="nm">Кандык<br>сибирский</span>
+  </div>
+  <div class="sp" id="s3" onclick="selectSp(3)">
+    <span class="em">🐟</span>
+    <span class="nm">Алтайский<br>осман</span>
+  </div>
+</div>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="icon-bounce">
+    <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+    </svg>
+  </div>
+
+  <h2 style="font-size:1.4rem;font-weight:800;color:#fff;margin-bottom:8px;">AR-поле эндемиков</h2>
+  <p style="color:#94a3b8;font-size:.82rem;max-width:270px;margin:0 auto 18px;line-height:1.6;">
+    Наведите камеру на распечатанное поле — всё появится сразу. Потом можно свободно ходить вокруг!
+  </p>
+
+  <!-- Field diagram -->
+  <div style="width:190px;height:120px;border:1.5px solid rgba(34,211,238,.25);border-radius:14px;background:rgba(34,211,238,.04);position:relative;margin:0 auto 18px;">
+    <div style="position:absolute;bottom:16px;left:22px;width:13px;height:13px;border-radius:50%;border:2px solid #22d3ee;display:flex;align-items:center;justify-content:center;font-size:7px;color:#22d3ee;font-weight:700;">1</div>
+    <div style="position:absolute;top:35%;right:20px;width:13px;height:13px;border-radius:50%;border:2px solid #f472b6;display:flex;align-items:center;justify-content:center;font-size:7px;color:#f472b6;font-weight:700;">2</div>
+    <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;border:2px solid #60a5fa;display:flex;align-items:center;justify-content:center;font-size:7px;color:#60a5fa;font-weight:700;">3</div>
+    <span style="position:absolute;bottom:5px;right:8px;font-size:9px;color:rgba(255,255,255,.2);">ХАМИР.VR</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:6px;font-size:.72rem;color:#64748b;margin-bottom:22px;">
+    <span>🌿 1 — Сибирка алтайская</span>
+    <span>🌸 2 — Кандык сибирский</span>
+    <span>🐟 3 — Алтайский осман</span>
+  </div>
+
+  <button id="start-btn" class="btn-glow" style="padding:13px 34px;font-size:.82rem;">
+    📷 Начать AR-сеанс
+  </button>
+</div>
+
+<!-- Error -->
+<div id="err">
+  <div style="width:56px;height:56px;border-radius:14px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);display:flex;align-items:center;justify-content:center;color:#f87171;">
+    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+  </div>
+  <h2 style="font-size:1.1rem;font-weight:700;color:#fff;">Маркер не найден</h2>
+  <p id="err-msg" style="font-size:.72rem;color:#fca5a5;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:9999px;padding:4px 14px;"></p>
+  <p style="color:#64748b;font-size:.78rem;max-width:290px;line-height:1.7;">
+    Положите <strong style="color:#fff;">field.png</strong> в <code style="background:#1e293b;padding:2px 5px;border-radius:4px;">markers/</code> и скомпилируйте через
+  </p>
+</div>
+
+<script>
+// ── Refs ──────────────────────────────────────────
+const SCENE   = document.getElementById('scene');
+const TARGET  = document.getElementById('field-target');
+const CONTENT = document.getElementById('ar-content');
+const CAM     = document.getElementById('cam');
+const splash  = document.getElementById('splash');
+const pill    = document.getElementById('pill');
+const ptxt    = document.getElementById('ptxt');
+const scanWrap= document.getElementById('scan-wrap');
+const hint    = document.getElementById('explore-hint');
+const spBar   = document.getElementById('sp-bar');
+
+// ── File check ────────────────────────────────────
+async function ok(url){try{return(await fetch(url,{method:'HEAD'})).ok}catch{return false}}
+(async()=>{
+  const [m]=await Promise.all([ok('./markers/targets.mind')]);
+  const miss=[];
+  if(!m)miss.push('markers/targets.mind');
+  if(miss.length){
+    document.getElementById('err-msg').textContent='Не найдено: '+miss.join(', ');
+    document.getElementById('err').classList.add('show');
+  }
+})();
+
+// ── Splash start ──────────────────────────────────
+document.getElementById('start-btn').addEventListener('click',()=>{
+  splash.classList.add('hide');
+  setTimeout(()=>splash.remove(),500);
+});
+
+// ── CONTINUOUS TRACKING (Multi-Target) ───────────
+document.querySelectorAll('.mind-tgt').forEach((tgt) => {
+  tgt.addEventListener('targetFound', () => {
+    pill.classList.add('found');
+    ptxt.textContent = '✅ Обнаружен маркер №' + tgt.getAttribute('mindar-image-target').targetIndex;
+    scanWrap.classList.add('hide');
+    spBar.classList.add('show');
+  });
+
+  tgt.addEventListener('targetLost', () => {
+    pill.classList.remove('found');
+    ptxt.textContent = 'Наведите камеру на маркеры';
+    scanWrap.classList.remove('hide');
+    spBar.classList.remove('show');
+  });
+});
+
+// ── Species bar ───────────────────────────────────
+function selectSp(n){
+  document.querySelectorAll('.sp').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s'+n).classList.add('on');
+}
+
+// ── drag-rotate component ─────────────────────────
+AFRAME.registerComponent('drag-rotate',{
+  schema:{speed:{default:0.45}},
+  init(){
+    this.drag=false; this.lastX=0; this.rotY=0;
+    const el=this.el;
+    el.addEventListener('mousedown', e=>{this.drag=true; this.lastX=e.clientX;});
+    el.addEventListener('touchstart',e=>{this.drag=true; this.lastX=e.touches[0].clientX;},{passive:true});
+    document.addEventListener('mousemove', e=>{if(!this.drag)return; const d=e.clientX-this.lastX; this.lastX=e.clientX; this.rotY+=d*this.data.speed; el.setAttribute('rotation',`0 ${this.rotY} 0`);});
+    document.addEventListener('touchmove', e=>{if(!this.drag)return; const d=e.touches[0].clientX-this.lastX; this.lastX=e.touches[0].clientX; this.rotY+=d*this.data.speed; el.setAttribute('rotation',`0 ${this.rotY} 0`);},{passive:true});
+    document.addEventListener('mouseup', ()=>{this.drag=false;});
+    document.addEventListener('touchend',()=>{this.drag=false;});
+  }
+});
+
+// Attach drag-rotate to each model
+['m1','m2','m3'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.setAttribute('drag-rotate','speed: 0.4');
+});
+
+
+// ── Orientation change ────────────────────────────
+window.addEventListener('orientationchange',()=>{
+  setTimeout(()=>{
+    if(SCENE.resize) SCENE.resize();
+    window.dispatchEvent(new Event('resize'));
+  },300);
+});
+</script>
+
+<script src="./i18n.js"></script>
+</body>
+</html>

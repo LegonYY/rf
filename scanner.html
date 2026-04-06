@@ -8,19 +8,22 @@
   <!-- Patch getUserMedia BEFORE A-Frame/MindAR load → request HD camera -->
   <script>
     (function () {
-      const _orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-      navigator.mediaDevices.getUserMedia = function (c) {
-        if (c && c.video) {
-          c.video = {
-            facingMode: { ideal: 'environment' },
-            width:  { ideal: 1920 },
-            height: { ideal: 1080 },
-          };
-        }
-        return _orig(c);
-      };
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const _orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = function (c) {
+          if (c && c.video) {
+            c.video = {
+              facingMode: { ideal: 'environment' },
+              width:  { ideal: 1920 },
+              height: { ideal: 1080 },
+            };
+          }
+          return _orig(c);
+        };
+      }
     })();
   </script>
+
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -30,7 +33,7 @@
   <style>
     :root { --emerald: #059669; --cyan: #0891b2; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f172a; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
+    body { background: transparent; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
 
     /* ── Header ── */
     .glass-header {
