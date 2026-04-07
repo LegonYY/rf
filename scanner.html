@@ -8,6 +8,27 @@
 
 
 
+  <script>
+    // Перехват getUserMedia для принудительного выбора камеры ДО загрузки MindAR
+    const savedCameraId = localStorage.getItem('selectedCamera');
+    if (savedCameraId) {
+      const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async function(constraints) {
+        if (constraints && constraints.video) {
+          if (typeof constraints.video === 'boolean') {
+            constraints.video = {};
+          }
+          // Принудительно задаем устройство и удаляем facingMode
+          constraints.video.deviceId = { exact: savedCameraId };
+          if (constraints.video.facingMode) {
+            delete constraints.video.facingMode;
+          }
+        }
+        return originalGetUserMedia(constraints);
+      };
+    }
+  </script>
+
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Tailwind CSS -->
@@ -395,6 +416,12 @@
         <span class="font-bold text-base sm:text-xl tracking-wider text-white">ХАМИР.VR</span>
       </a>
       <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Выбор камеры -->
+        <select id="camera-select"
+          class="bg-slate-900/50 border border-slate-700 text-white text-[10px] sm:text-xs rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-1 sm:p-2 outline-none cursor-pointer max-w-[100px] sm:max-w-[150px] truncate" title="Выбор камеры">
+          <option value="" data-i18n="cam_default">Авто-камера</option>
+        </select>
+
         <select
           class="lang-select bg-slate-900/50 border border-slate-700 text-white text-[10px] sm:text-xs rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-1 sm:p-2 outline-none cursor-pointer">
           <option value="ru">RU</option>
@@ -613,6 +640,61 @@
         if (scene && scene.resize) scene.resize();
         window.dispatchEvent(new Event('resize'));
       }, 300);
+    });
+
+    // Логика списка камер
+    const cameraSelect = document.getElementById('camera-select');
+    
+    async function initCameraSelect() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        // Очищаем и добавляем дефолтный
+        cameraSelect.innerHTML = '<option value="" data-i18n="cam_default">Авто-камера</option>';
+        if (typeof t === 'function' && t('cam_default')) {
+           cameraSelect.options[0].textContent = t('cam_default');
+        }
+        
+        let hasLabels = false;
+        
+        videoDevices.forEach((device, index) => {
+          if (device.label) hasLabels = true;
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          // Укорачиваем длинные названия
+          option.text = device.label || `Камера ${index + 1}`;
+          if (device.deviceId === localStorage.getItem('selectedCamera')) {
+            option.selected = true;
+          }
+          cameraSelect.appendChild(option);
+        });
+        
+        // Если названий пока нет (нет прав), пытаемся снова когда права могут появиться
+        if (!hasLabels && videoDevices.length > 0) {
+            setTimeout(initCameraSelect, 2000);
+        }
+      } catch (err) {
+        console.error("Ошибка при получении списка камер:", err);
+      }
+    }
+    
+    initCameraSelect();
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.addEventListener('devicechange', initCameraSelect);
+    }
+    
+    cameraSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val) {
+        localStorage.setItem('selectedCamera', val);
+      } else {
+        localStorage.removeItem('selectedCamera');
+      }
+      // Перезагрузка для применения нового устройства через proxy
+      window.location.reload();
     });
   </script>
 
