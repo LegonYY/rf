@@ -1,0 +1,23 @@
+{
+  "name": "rf",
+  "version": "1.0.0",
+  "description": "VR journey through the endemic flora and fauna of the Khamir River estuary",
+  "main": "i18n.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://x-access-token:ghs_8w7beK1xsSMiwxTLEN8iYiaPNydgXd2tNpgd@github.com/LegonYY/rf.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LegonYY/rf/issues"
+  },
+  "homepage": "https://github.com/LegonYY/rf#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
