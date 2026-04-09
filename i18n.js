@@ -12,7 +12,7 @@ const translations = {
 
     // Home Hero
     badge_project: "Научно-краеведческий проект",
-    hero_title: "Интерактивная VR-карта:<br> <span class='text-gradient'>Сокровища Хамира</span>",
+    hero_title: "Интерактивная AR-карта:<br> <span class='text-gradient'>Сокровища Хамира</span>",
     hero_subtitle: "Исследуйте уникальную флору и фауну Восточного Казахстана через призму дополненной реальности и 3D-моделирования.",
     btn_hero_start: "Начать AR-путешествие",
 
@@ -51,7 +51,7 @@ const translations = {
     foot_tech: "Технологии",
     foot_data: "Данные",
     foot_contact: "✉ Связаться с авторами",
-    foot_copy: "© 2026 Проект Хамир.VR. Все права защищены.",
+    foot_copy: "© 2026 Проект Хамир.AR. Все права защищены.",
 
     // Index (AR)
     splash_title: "AR Сканер",
@@ -75,7 +75,7 @@ const translations = {
     nav_back: "Артқа",
 
     badge_project: "Ғылыми-өлкетану жобасы",
-    hero_title: "Интерактивті VR-карта:<br> <span class='text-gradient'>Хамир қазынасы</span>",
+    hero_title: "Интерактивті AR-карта:<br> <span class='text-gradient'>Хамир қазынасы</span>",
     hero_subtitle: "Шығыс Қазақстанның бірегей флорасы мен фаунасын толықтырылған шынайылық және 3D-модельдеу арқылы зерттеңіз.",
     btn_hero_start: "AR-саяхатты бастау",
 
@@ -110,7 +110,7 @@ const translations = {
     foot_tech: "Технологиялар",
     foot_data: "Деректер",
     foot_contact: "✉ Авторлармен байланысу",
-    foot_copy: "© 2026 Хамир.VR жобасы. Барлық құқықтар қорғалған.",
+    foot_copy: "© 2026 Хамир.AR жобасы. Барлық құқықтар қорғалған.",
 
     splash_title: "AR Сканер",
     splash_desc: "Камераны ашып, суреттерді дыбыспен жандандыру үшін түймені басыңыз",
@@ -133,7 +133,7 @@ const translations = {
     nav_back: "Back",
 
     badge_project: "Scientific-local history project",
-    hero_title: "Interactive VR Map:<br> <span class='text-gradient'>Treasures of Khamir</span>",
+    hero_title: "Interactive AR Map:<br> <span class='text-gradient'>Treasures of Khamir</span>",
     hero_subtitle: "Explore the unique flora and fauna of Eastern Kazakhstan through the lens of augmented reality and 3D modeling.",
     btn_hero_start: "Start AR Journey",
 
@@ -168,7 +168,7 @@ const translations = {
     foot_tech: "Technologies",
     foot_data: "Data",
     foot_contact: "✉ Contact Authors",
-    foot_copy: "© 2026 Khamir.VR Project. All rights reserved.",
+    foot_copy: "© 2026 Khamir.AR Project. All rights reserved.",
 
     splash_title: "AR Scanner",
     splash_desc: "Click the button to open the camera and bring illustrations to life with sound",
