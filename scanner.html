@@ -478,13 +478,17 @@
     filterMinCF: 0.001;
     filterBeta:  0.1;
     missTolerance: 10;
+    maxTrack: 4;
     uiLoading: no; uiScanning: no; uiError: no;" color-space="sRGB"
     renderer="colorManagement: true, physicallyCorrectLights; antialias: false; precision: medium"
     vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 
-    <a-assets>
+    <a-assets timeout="30000">
       <video id="vid" src="./videos/video.mp4" muted playsinline loop preload="auto"></video>
       <img id="img" src="./markers/target.png" />
+      <a-asset-item id="model-vetka" src="./3d/3веткаtled.glb"></a-asset-item>
+      <a-asset-item id="model-cvetok" src="./3d/2цветокtled.glb"></a-asset-item>
+      <a-asset-item id="model-ryba" src="./3d/4рыбаtled.glb"></a-asset-item>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -496,35 +500,31 @@
         rotation="0 0 0"></a-entity>
     </a-entity>
 
-    <!-- Первая новая картинка (targetIndex: 1) -->
+    <!-- Первая новая картинка (targetIndex: 1) - Ветка -->
     <a-entity class="target" mindar-image-target="targetIndex: 1">
-      <!-- Тестовая 3D-модель (Дерево) -->
-      <a-entity position="0 0 0.1" animation="property: rotation; to: 0 360 0; dur: 4000; easing: linear; loop: true">
-        <a-cone color="#34d399" radius-bottom="0.4" radius-top="0" height="0.8" position="0 0.4 0"></a-cone>
-        <a-cylinder color="#8B4513" radius="0.1" height="0.3" position="0 0.15 0"></a-cylinder>
-      </a-entity>
+      <a-gltf-model src="#model-vetka"
+        position="0 0.5 0"
+        scale="0.5 0.5 0.5"
+        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
+      </a-gltf-model>
     </a-entity>
 
-    <!-- Вторая новая картинка (targetIndex: 2) -->
+    <!-- Вторая новая картинка (targetIndex: 2) - Цветок -->
     <a-entity class="target" mindar-image-target="targetIndex: 2">
-      <!-- Тестовая 3D-модель (Цветок) -->
-      <a-entity position="0 0 0.1" animation="property: rotation; to: 0 360 0; dur: 4000; easing: linear; loop: true">
-        <a-sphere color="#e879f9" radius="0.2" position="0 0.5 0"></a-sphere>
-        <a-cylinder color="#22c55e" radius="0.05" height="0.5" position="0 0.25 0"></a-cylinder>
-        <!-- Лепестки -->
-        <a-cone color="#f0abfc" radius-bottom="0.1" height="0.3" rotation="45 0 0" position="0 0.4 0.15"></a-cone>
-        <a-cone color="#f0abfc" radius-bottom="0.1" height="0.3" rotation="-45 0 0" position="0 0.4 -0.15"></a-cone>
-      </a-entity>
+      <a-gltf-model src="#model-cvetok"
+        position="0 0.5 0"
+        scale="0.5 0.5 0.5"
+        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
+      </a-gltf-model>
     </a-entity>
 
-    <!-- Третья новая картинка (targetIndex: 3) -->
+    <!-- Третья новая картинка (targetIndex: 3) - Рыба -->
     <a-entity class="target" mindar-image-target="targetIndex: 3">
-      <!-- Тестовая 3D-модель (Рыбка) -->
-      <a-entity position="0 0 0.1" animation="property: rotation; to: 0 360 0; dur: 4000; easing: linear; loop: true">
-        <a-box color="#3b82f6" depth="0.6" height="0.2" width="0.1" position="0 0.3 0"></a-box>
-        <!-- Хвост -->
-        <a-cone color="#60a5fa" radius-bottom="0.15" height="0.3" rotation="-90 0 0" position="0 0.3 -0.4"></a-cone>
-      </a-entity>
+      <a-gltf-model src="#model-ryba"
+        position="0 0.5 0"
+        scale="0.5 0.5 0.5"
+        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
+      </a-gltf-model>
     </a-entity>
 
   </a-scene>
