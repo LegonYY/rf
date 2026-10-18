@@ -359,6 +359,143 @@
     #err.show {
       display: flex;
     }
+
+    /* ── Просмотр модели: кнопки, оверлей, индикатор загрузки ── */
+    #view-btn,
+    #viewer-close,
+    #viewer-reset {
+      position: fixed;
+      top: 88px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      color: #67e8f9;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .3s;
+      touch-action: manipulation;
+    }
+
+    #view-btn {
+      right: 16px;
+      z-index: 110;
+    }
+
+    #view-btn.show {
+      display: flex;
+    }
+
+    #view-btn:hover,
+    #viewer-close:hover,
+    #viewer-reset:hover {
+      border-color: rgba(34, 211, 238, .4);
+      color: #fff;
+      transform: scale(1.05);
+    }
+
+    #view-btn.pulse {
+      border-color: rgba(52, 211, 153, .6);
+      animation: viewPulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes viewPulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, .5);
+      }
+
+      50% {
+        box-shadow: 0 0 0 12px rgba(52, 211, 153, 0);
+      }
+    }
+
+    #viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: none;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: grab;
+      background: radial-gradient(ellipse at center, rgba(2, 6, 23, .35) 0%, rgba(2, 6, 23, .78) 100%);
+    }
+
+    #viewer.show {
+      display: block;
+    }
+
+    #viewer.dragging {
+      cursor: grabbing;
+    }
+
+    #viewer-close {
+      right: 16px;
+      display: flex;
+    }
+
+    #viewer-reset {
+      right: 76px;
+      display: flex;
+    }
+
+    #viewer-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 40px;
+      transform: translateX(-50%);
+      border-radius: 9999px;
+      padding: 10px 20px;
+      font-size: .8rem;
+      color: #cbd5e1;
+      white-space: nowrap;
+      max-width: calc(100vw - 32px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      transition: opacity .6s;
+    }
+
+    #viewer-hint.fade {
+      opacity: 0;
+    }
+
+    body.viewer-open #hud {
+      visibility: hidden;
+    }
+
+    body.viewer-open #sound-btn {
+      z-index: 170;
+    }
+
+    #model-loading {
+      position: fixed;
+      left: 50%;
+      bottom: 100px;
+      width: 28px;
+      height: 28px;
+      margin-left: -14px;
+      border-radius: 50%;
+      border: 3px solid rgba(34, 211, 238, .25);
+      border-top-color: #22d3ee;
+      z-index: 105;
+      display: none;
+      pointer-events: none;
+      animation: spin .8s linear infinite;
+    }
+
+    #model-loading.show {
+      display: block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
   <script>
     // Умный компонент, который делает видео "адаптивным" в AR
@@ -410,6 +547,163 @@
           if (video.readyState >= 1) updateGeometry();
           else video.addEventListener('loadedmetadata', updateGeometry);
         }
+      }
+    });
+  </script>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    //  3D-модели: ленивая загрузка, масштаб от маркера и экрана
+    // ═══════════════════════════════════════════════════════════════
+    // aspect — высота/ширина маркера, взято из markers/all-targets.mind.
+    // Если пересоберёте .mind — обновите значения.
+    // url — оптимизированная копия (3d/opt/), fallback — оригинал.
+    const MODEL_CFG = {
+      1: { url: './3d/opt/cvetok.glb', fallback: './3d/2цветокtled.glb', aspect: 0.558, viewYaw: 0.5 },
+      2: { url: './3d/opt/vetka.glb',  fallback: './3d/3веткаtled.glb',  aspect: 0.605, viewYaw: 0.5 },
+      3: { url: './3d/opt/ryba.glb',   fallback: './3d/4рыбаtled.glb',   aspect: 0.453, viewYaw: Math.PI / 2 }
+    };
+
+    // Все размеры — в долях ширины маркера (1 = вся ширина плаката) или экрана
+    const FIT = {
+      markerW: 0.85,  // макс. диаметр модели при вращении, доля ширины маркера
+      markerH: 1.0,   // макс. высота модели, доля ширины маркера
+      screenW: 0.75,  // макс. доля ширины экрана, которую может занять модель
+      screenH: 0.50   // макс. доля высоты экрана
+    };
+
+    const ARModels = {
+      items: [],
+      last: null,
+      viewerOpen: false,
+      pending: 0,
+      emit(type, item) {
+        window.dispatchEvent(new CustomEvent('armodel', { detail: { type, item } }));
+      },
+      setLoading(delta) {
+        this.pending = Math.max(0, this.pending + delta);
+        this.emit('loading', null);
+      },
+      anyVisible() {
+        return this.items.some(i => i.el.object3D.visible);
+      }
+    };
+
+    AFRAME.registerComponent('lazy-model', {
+      schema: { idx: { type: 'int' } },
+
+      init: function () {
+        const THREE = AFRAME.THREE;
+        this.cfg = MODEL_CFG[this.data.idx];
+        this.state = 'idle';           // idle → loading → ready | error
+        this.holder = new THREE.Group(); // масштаб
+        this.pivot = new THREE.Group();  // вращение
+        this.holder.visible = false;
+        this.holder.add(this.pivot);
+        this.el.object3D.add(this.holder);
+        this.model = null;
+        this.dim = null;
+        this.base = 1;
+        this.scale = 0;
+        this._p = new THREE.Vector3();
+        this._s = new THREE.Vector3();
+        ARModels.items.push(this);
+
+        this.el.addEventListener('targetFound', () => {
+          this.snap = true;
+          ARModels.last = this;
+          this.load();
+          ARModels.emit('found', this);
+        });
+        this.el.addEventListener('targetLost', () => ARModels.emit('lost', this));
+      },
+
+      // Модель грузится только при первом обнаружении своего маркера
+      load: function () {
+        if (this.state !== 'idle') return;
+        this.state = 'loading';
+        ARModels.setLoading(1);
+        const loader = new AFRAME.THREE.GLTFLoader();
+        const urls = [this.cfg.url, this.cfg.fallback];
+        const attempt = () => {
+          const url = urls.shift();
+          loader.load(url,
+            gltf => this.onLoaded(gltf.scene),
+            undefined,
+            err => {
+              console.warn('[AR] Не удалось загрузить', url, err);
+              if (urls.length) attempt();
+              else { this.state = 'error'; ARModels.setLoading(-1); }
+            });
+        };
+        attempt();
+      },
+
+      onLoaded: function (root) {
+        const THREE = AFRAME.THREE;
+        root.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(root);
+        const c = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Радиус «следа» при вращении вокруг вертикали и радиус описанной сферы
+        let rxz = 0, rs = 0;
+        const v = new THREE.Vector3();
+        root.traverse(o => {
+          if (!o.isMesh) return;
+          const pos = o.geometry.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+            const dx = v.x - c.x, dy = v.y - c.y, dz = v.z - c.z;
+            rxz = Math.max(rxz, dx * dx + dz * dz);
+            rs = Math.max(rs, dx * dx + dy * dy + dz * dz);
+          }
+        });
+
+        // Центрируем модель относительно точки вращения (пропорции не трогаем)
+        root.position.sub(c);
+        this.pivot.add(root);
+        this.model = root;
+        this.dim = { R: Math.sqrt(rxz) || 1, H: size.y || 1, Rs: Math.sqrt(rs) || 1 };
+
+        // Базовый масштаб: модель целиком в пределах маркера по ширине
+        // и не выше заданной доли его ширины. Один коэффициент на все оси.
+        this.base = Math.min(FIT.markerW / (2 * this.dim.R), FIT.markerH / this.dim.H);
+        this.scale = this.base;
+        this.snap = true;
+        this.state = 'ready';
+        this.holder.scale.setScalar(this.scale);
+        this.holder.visible = !ARModels.viewerOpen;
+        ARModels.setLoading(-1);
+        ARModels.emit('ready', this);
+      },
+
+      // Масштаб с учётом того, какую часть экрана занимает модель
+      // (зависит от расстояния до маркера, FOV камеры и формата экрана).
+      fitScale: function () {
+        const cam = this.el.sceneEl.camera;
+        if (!cam) return this.base;
+        const e = cam.projectionMatrix.elements;
+        const p = this._p, s = this._s;
+        this.el.object3D.getWorldPosition(p);
+        this.el.object3D.getWorldScale(s);
+        cam.updateMatrixWorld();
+        p.applyMatrix4(cam.matrixWorldInverse);
+        const z = -p.z;
+        const k = s.x;
+        if (!(z > 1e-3) || !(k > 0)) return this.base;
+        const byW = FIT.screenW * z / (this.dim.R * k * Math.abs(e[0]));
+        const byH = 2 * FIT.screenH * z / (this.dim.H * k * Math.abs(e[5]));
+        return Math.min(this.base, byW, byH);
+      },
+
+      tick: function (time) {
+        if (this.state !== 'ready' || ARModels.viewerOpen || !this.el.object3D.visible) return;
+        this.pivot.rotation.y = (time / 6000 % 1) * Math.PI * 2; // оборот за 6 с, как раньше
+        const target = this.fitScale();
+        this.scale = this.snap ? target : this.scale + (target - this.scale) * 0.15;
+        this.snap = false;
+        this.holder.scale.setScalar(this.scale);
       }
     });
   </script>
@@ -477,18 +771,15 @@
   <a-scene id="scene" mindar-image="imageTargetSrc: ./markers/all-targets.mind;
     filterMinCF: 0.001;
     filterBeta:  0.1;
-    missTolerance: 10;
+    missTolerance: 25;
     maxTrack: 4;
     uiLoading: no; uiScanning: no; uiError: no;" color-space="sRGB"
     renderer="colorManagement: true, physicallyCorrectLights; antialias: false; precision: medium"
     vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 
     <a-assets timeout="30000">
-      <video id="vid" src="./videos/video.mp4" muted playsinline loop preload="auto"></video>
+      <video id="vid" src="./videos/video.mp4" muted playsinline loop preload="metadata"></video>
       <img id="img" src="./markers/target.png" />
-      <a-asset-item id="model-vetka" src="./3d/3веткаtled.glb"></a-asset-item>
-      <a-asset-item id="model-cvetok" src="./3d/2цветокtled.glb"></a-asset-item>
-      <a-asset-item id="model-ryba" src="./3d/4рыбаtled.glb"></a-asset-item>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -501,31 +792,13 @@
     </a-entity>
 
     <!-- Первая новая картинка (targetIndex: 1) - Ветка -->
-    <a-entity class="target" mindar-image-target="targetIndex: 1">
-      <a-gltf-model src="#model-cvetok"
-        position="0 0.5 0"
-        scale="0.5 0.5 0.5"
-        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
-      </a-gltf-model>
-    </a-entity>
+    <a-entity class="target" mindar-image-target="targetIndex: 1" lazy-model="idx: 1"></a-entity>
 
     <!-- Вторая новая картинка (targetIndex: 2) - Цветок -->
-    <a-entity class="target" mindar-image-target="targetIndex: 2">
-      <a-gltf-model src="#model-vetka"
-        position="0 0.5 0"
-        scale="0.5 0.5 0.5"
-        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
-      </a-gltf-model>
-    </a-entity>
+    <a-entity class="target" mindar-image-target="targetIndex: 2" lazy-model="idx: 2"></a-entity>
 
     <!-- Третья новая картинка (targetIndex: 3) - Рыба -->
-    <a-entity class="target" mindar-image-target="targetIndex: 3">
-      <a-gltf-model src="#model-ryba"
-        position="0 0.5 0"
-        scale="0.5 0.5 0.5"
-        animation="property: rotation; to: 0 360 0; dur: 6000; easing: linear; loop: true">
-      </a-gltf-model>
-    </a-entity>
+    <a-entity class="target" mindar-image-target="targetIndex: 3" lazy-model="idx: 3"></a-entity>
 
   </a-scene>
 
@@ -569,6 +842,29 @@
       <div class="dot"></div>
       <span id="ptxt" data-i18n="hud_scan">Наведите камеру на плакат</span>
     </div>
+  </div>
+
+  <!-- ══ Просмотр модели (кнопка, индикатор загрузки, оверлей) ══ -->
+  <div id="model-loading"></div>
+
+  <button id="view-btn" class="glass-ui" type="button">
+    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+    </svg>
+  </button>
+
+  <div id="viewer" aria-hidden="true">
+    <button id="viewer-reset" class="glass-ui" type="button">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5.6 15A8 8 0 0018.4 17M18.4 9A8 8 0 005.6 7" />
+      </svg>
+    </button>
+    <button id="viewer-close" class="glass-ui" type="button">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <div id="viewer-hint" class="glass-ui"></div>
   </div>
 
   <!-- ══ Ошибка ══ -->
@@ -794,6 +1090,185 @@
     if (navigator.mediaDevices) {
       navigator.mediaDevices.addEventListener('devicechange', initCameraSelect);
     }
+  </script>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    //  Режим просмотра модели (вращение пальцем / мышью, масштаб)
+    //  Работает независимо от трекинга: маркер в кадре не нужен.
+    // ═══════════════════════════════════════════════════════════════
+    (() => {
+      // Подписи нового элемента интерфейса (i18n.js не менялся)
+      const VT = {
+        ru: { open: 'Рассмотреть модель', close: 'Закрыть', reset: 'Сбросить вид', hint: 'Вращайте пальцем · сведите пальцы для масштаба' },
+        kk: { open: 'Модельді қарау', close: 'Жабу', reset: 'Көріністі қалпына келтіру', hint: 'Айналдыру үшін сүйреңіз · масштаб үшін екі саусақпен' },
+        en: { open: 'Inspect model', close: 'Close', reset: 'Reset view', hint: 'Drag to rotate · pinch to zoom' }
+      };
+      const lang = () => VT[localStorage.getItem('site_lang')] || VT.ru;
+
+      const $ = id => document.getElementById(id);
+      const sceneEl = $('scene');
+      const viewer = $('viewer'), viewBtn = $('view-btn');
+      const closeBtn = $('viewer-close'), resetBtn = $('viewer-reset'), hintEl = $('viewer-hint');
+      const loadingEl = $('model-loading');
+
+      function applyLabels() {
+        const L = lang();
+        viewBtn.title = L.open; viewBtn.setAttribute('aria-label', L.open);
+        closeBtn.title = L.close; closeBtn.setAttribute('aria-label', L.close);
+        resetBtn.title = L.reset; resetBtn.setAttribute('aria-label', L.reset);
+        hintEl.textContent = L.hint;
+      }
+      applyLabels();
+      window.addEventListener('langChanged', applyLabels);
+
+      // Состояние просмотра
+      const V = { item: null, group: null, pivot: null, yaw: 0, pitch: 0, vYaw: 0, vPitch: 0, zoom: 1, auto: true, raf: 0, last: 0 };
+      const DIST = 500; // расстояние перед камерой в мировых единицах MindAR (near = 10)
+      const pointers = new Map();
+      let lastPinch = 0, lastTap = 0, hintTimer = 0;
+
+      // ── Кнопка «рассмотреть» и индикатор загрузки ──
+      window.addEventListener('armodel', e => {
+        const { type } = e.detail;
+        if (type === 'loading') loadingEl.classList.toggle('show', ARModels.pending > 0);
+        if (type === 'ready' && !ARModels.viewerOpen) viewBtn.classList.add('show');
+        if (type === 'found') viewBtn.classList.remove('pulse');
+        if (type === 'lost' && !ARModels.anyVisible() && ARModels.last && ARModels.last.state === 'ready') {
+          viewBtn.classList.add('show', 'pulse');   // подсказка: маркер потерян, модель можно рассмотреть
+        }
+      });
+
+      viewBtn.addEventListener('click', () => {
+        const item = ARModels.last;
+        if (item && item.state === 'ready') openViewer(item);
+      });
+
+      // ── Подгонка размера под экран ──
+      function fitViewer() {
+        const cam = sceneEl.camera;
+        if (!cam || !V.item) return;
+        const e = cam.projectionMatrix.elements;
+        const Rs = V.item.dim.Rs;
+        const sx = 0.42 * DIST / (Rs * Math.abs(e[0]));
+        const sy = 0.34 * DIST / (Rs * Math.abs(e[5]));
+        V.group.scale.setScalar(Math.min(sx, sy) * V.zoom);
+      }
+
+      function resetView() {
+        V.yaw = V.item.cfg.viewYaw; V.pitch = 0.1; V.vYaw = V.vPitch = 0; V.zoom = 1; V.auto = true;
+      }
+
+      function openViewer(item) {
+        const THREE = AFRAME.THREE;
+        const cam = sceneEl.camera;
+        if (!cam || ARModels.viewerOpen) return;
+        V.item = item;
+        V.group = new THREE.Group();
+        V.pivot = new THREE.Group();
+        V.group.add(V.pivot);
+        V.group.position.set(0, 0, -DIST);
+        V.pivot.add(item.model);          // та же модель, без повторной загрузки
+        cam.add(V.group);                 // привязана к камере → не зависит от маркера
+        ARModels.viewerOpen = true;
+        ARModels.items.forEach(i => { i.holder.visible = false; });
+        resetView();
+        fitViewer();
+        document.body.classList.add('viewer-open');
+        viewer.classList.add('show');
+        viewer.setAttribute('aria-hidden', 'false');
+        viewBtn.classList.remove('show', 'pulse');
+        hintEl.classList.remove('fade');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => hintEl.classList.add('fade'), 4000);
+        V.last = performance.now();
+        V.raf = requestAnimationFrame(loop);
+      }
+
+      function closeViewer() {
+        if (!ARModels.viewerOpen) return;
+        cancelAnimationFrame(V.raf);
+        V.item.pivot.add(V.item.model);   // возвращаем модель в AR-режим
+        sceneEl.camera.remove(V.group);
+        ARModels.viewerOpen = false;
+        ARModels.items.forEach(i => { i.holder.visible = i.state === 'ready'; i.snap = true; });
+        pointers.clear();
+        viewer.classList.remove('show', 'dragging');
+        viewer.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('viewer-open');
+        viewBtn.classList.add('show');
+        V.item = V.group = V.pivot = null;
+      }
+
+      function loop(now) {
+        if (!ARModels.viewerOpen) return;
+        const dt = Math.min(0.05, (now - V.last) / 1000);
+        V.last = now;
+        if (pointers.size === 0) {
+          if (V.auto) V.yaw += dt * 0.4;                       // медленное вращение до первого касания
+          V.yaw += V.vYaw; V.pitch += V.vPitch;                // инерция
+          V.vYaw *= 0.94; V.vPitch *= 0.94;
+        }
+        V.pitch = Math.max(-1.3, Math.min(1.3, V.pitch));
+        V.pivot.rotation.set(V.pitch, V.yaw, 0, 'XYZ');
+        fitViewer();                                           // учитывает поворот экрана и зум
+        V.raf = requestAnimationFrame(loop);
+      }
+
+      // ── Управление: касание / мышь ──
+      const dist = () => {
+        const [a, b] = [...pointers.values()];
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      };
+      const clampZoom = z => Math.max(0.5, Math.min(4, z));
+
+      viewer.addEventListener('pointerdown', e => {
+        if (e.target.closest('button')) return;
+        viewer.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        viewer.classList.add('dragging');
+        V.auto = false; V.vYaw = V.vPitch = 0;
+        hintEl.classList.add('fade');
+        if (pointers.size === 2) lastPinch = dist();
+        if (pointers.size === 1) {                             // двойной тап — сброс вида
+          const t = performance.now();
+          if (t - lastTap < 300) resetView();
+          lastTap = t;
+        }
+      });
+
+      viewer.addEventListener('pointermove', e => {
+        const p = pointers.get(e.pointerId);
+        if (!p) return;
+        const dx = e.clientX - p.x, dy = e.clientY - p.y;
+        p.x = e.clientX; p.y = e.clientY;
+        if (pointers.size === 1) {
+          V.yaw += dx * 0.008; V.pitch += dy * 0.008;
+          V.vYaw = dx * 0.008; V.vPitch = dy * 0.008;
+        } else if (pointers.size === 2) {
+          const d = dist();
+          if (lastPinch > 0) V.zoom = clampZoom(V.zoom * d / lastPinch);
+          lastPinch = d;
+        }
+      });
+
+      const endPointer = e => {
+        pointers.delete(e.pointerId);
+        if (pointers.size === 0) viewer.classList.remove('dragging');
+        if (pointers.size === 1) lastPinch = 0;
+      };
+      viewer.addEventListener('pointerup', endPointer);
+      viewer.addEventListener('pointercancel', endPointer);
+
+      viewer.addEventListener('wheel', e => {
+        e.preventDefault();
+        V.zoom = clampZoom(V.zoom * Math.exp(-e.deltaY * 0.001));
+      }, { passive: false });
+
+      closeBtn.addEventListener('click', closeViewer);
+      resetBtn.addEventListener('click', () => V.item && resetView());
+      window.addEventListener('keydown', e => { if (e.key === 'Escape') closeViewer(); });
+    })();
   </script>
 
   <script src="./i18n.js"></script>
