@@ -562,7 +562,9 @@
     const MODEL_CFG = {
       1: { url: './3d/opt/cvetok.glb', fallback: './3d/2цветокtled.glb', aspect: 0.558, viewYaw: 0.5 },
       2: { url: './3d/opt/vetka.glb',  fallback: './3d/3веткаtled.glb',  aspect: 0.605, viewYaw: 0.5 },
-      3: { url: './3d/opt/ryba.glb',   fallback: './3d/4рыбаtled.glb',   aspect: 0.453, viewYaw: Math.PI / 2 }
+      3: { url: './3d/opt/ryba.glb',   fallback: './3d/4рыбаtled.glb',   aspect: 0.453, viewYaw: Math.PI / 2 },
+      4: { url: './3d/opt/hariuc.glb', fallback: './3d/рыба европейская.glb', aspect: 0.563, viewYaw: Math.PI / 2 },
+      5: { url: './3d/opt/taimen.glb', fallback: './3d/таймень рыба.glb',     aspect: 0.562, viewYaw: Math.PI / 2 }
     };
 
     // Все размеры — в долях ширины маркера (1 = вся ширина плаката) или экрана
@@ -800,6 +802,12 @@
 
     <!-- Третья новая картинка (targetIndex: 3) - Рыба -->
     <a-entity class="target" mindar-image-target="targetIndex: 3" lazy-model="idx: 3"></a-entity>
+
+    <!-- Четвёртая новая картинка (targetIndex: 4) - Хариус -->
+    <a-entity class="target" mindar-image-target="targetIndex: 4" lazy-model="idx: 4"></a-entity>
+
+    <!-- Пятая новая картинка (targetIndex: 5) - Таймень -->
+    <a-entity class="target" mindar-image-target="targetIndex: 5" lazy-model="idx: 5"></a-entity>
 
   </a-scene>
 
