@@ -35,6 +35,10 @@ const translations = {
     sp2_desc: "Весенний травянистый эфемероид с уникальной морфологией цветка. Символ пробуждения весенней тайги, нуждающийся в строгой охране.",
     sp3_name: "Алтайский осман",
     sp3_desc: "Рыба чистейших горных рек с ярко выраженной гидродинамической формой. Эндемичный вид водоемов Центральной Азии.",
+    sp4_name: "Таймень",
+    sp4_desc: "Крупнейший хищник семейства лососёвых. Обитает в чистых холодных реках, а из-за сокращения численности нуждается в охране.",
+    sp5_name: "Хариус",
+    sp5_desc: "Рыба холодных горных рек с высоким ярким спинным плавником. Чувствителен к загрязнению воды, поэтому служит показателем здоровья реки.",
 
     // Home Guide
     guide_title: "Как использовать AR-сканер?",
@@ -96,6 +100,10 @@ const translations = {
     sp2_desc: "Гүлі бірегей морфологияға ие жазғы шөптесін эфемероид. Қатаң қорғауды қажет ететін жазғы тайганың ояну символы.",
     sp3_name: "Алтай османы",
     sp3_desc: "Айқын гидродинамикалық пішіні бар таза тау өзендерінің балығы. Орталық Азия су қоймаларының эндемиялық түрі.",
+    sp4_name: "Таймень",
+    sp4_desc: "Лососьтар тұқымдасының ең ірі жыртқышы. Таза салқын өзендерде мекендейді, саны азайып бара жатқандықтан қорғауды қажет етеді.",
+    sp5_name: "Хариус",
+    sp5_desc: "Биік әрі жарқын арқа қанаты бар салқын тау өзендерінің балығы. Судың ластануына сезімтал, сондықтан өзеннің күйін көрсетеді.",
 
     guide_title: "AR-сканерді қалай қолдану керек?",
     guide_subtitle: "Ешқандай орнатусыз тікелей браузерде жұмыс істейтін қарапайым қосымша.",
@@ -154,6 +162,10 @@ const translations = {
     sp2_desc: "A spring herbaceous ephemeroid with unique flower morphology. A symbol of the spring taiga awakening, requiring strict protection.",
     sp3_name: "Altai Osman",
     sp3_desc: "A fish of the purest mountain rivers with a pronounced hydrodynamic shape. An endemic species of Central Asian reservoirs.",
+    sp4_name: "Taimen",
+    sp4_desc: "The largest predator of the salmon family. It lives in clean, cold rivers and needs protection because its numbers are declining.",
+    sp5_name: "Grayling",
+    sp5_desc: "A fish of cold mountain rivers with a tall, brightly coloured dorsal fin. It is sensitive to water pollution, so it indicates the health of a river.",
 
     guide_title: "How to use the AR scanner?",
     guide_subtitle: "A simple app that works directly in your browser without installation.",

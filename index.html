@@ -305,6 +305,18 @@
       border-color: rgba(52,211,153,0.5);
       color: #6ee7b7;
     }
+
+    /* Мобильный слайдер «AR в действии»: плавный свайп пальцем */
+    .demo-slider {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      touch-action: pan-x pan-y;
+      scroll-padding: 0 16px;
+    }
+
+    .demo-slider>* {
+      scroll-snap-stop: always;
+    }
   </style>
 </head>
 
@@ -543,6 +555,40 @@
           </div>
         </div>
 
+        <!-- Species 4 -->
+        <div class="min-w-[300px] md:min-w-[380px] glass-card snap-center" data-aos="zoom-in" data-aos-delay="400">
+          <div class="card-img-wrap">
+            <img src="./imageshtml/4тайменьimage.jpg"
+              alt="Таймень">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80">
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="text-xs font-mono text-cyan-400 mb-2">Hucho taimen</div>
+            <h3 class="text-2xl font-bold text-white mb-3" data-i18n="sp4_name">Таймень</h3>
+            <p class="text-sm text-slate-400 leading-relaxed mb-4" data-i18n="sp4_desc">
+              Крупнейший хищник семейства лососёвых. Обитает в чистых холодных реках, а из-за сокращения численности нуждается в охране.
+            </p>
+          </div>
+        </div>
+
+        <!-- Species 5 -->
+        <div class="min-w-[300px] md:min-w-[380px] glass-card snap-center" data-aos="zoom-in" data-aos-delay="500">
+          <div class="card-img-wrap">
+            <img src="./imageshtml/5хариусimage.jpg"
+              alt="Хариус">
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80">
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="text-xs font-mono text-emerald-400 mb-2">Thymallus thymallus</div>
+            <h3 class="text-2xl font-bold text-white mb-3" data-i18n="sp5_name">Хариус</h3>
+            <p class="text-sm text-slate-400 leading-relaxed mb-4" data-i18n="sp5_desc">
+              Рыба холодных горных рек с высоким ярким спинным плавником. Чувствителен к загрязнению воды, поэтому служит показателем здоровья реки.
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -564,7 +610,8 @@
       </div>
 
       <!-- ══ MOBILE: Horizontal Scroll ══ -->
-      <div class="flex md:hidden overflow-x-auto gap-4 pb-8 px-4 no-scrollbar snap-x snap-mandatory" data-aos="fade-up" data-aos-delay="100">
+      <div class="md:hidden" data-aos="fade-up" data-aos-delay="100">
+      <div id="demo-slider" class="demo-slider flex overflow-x-auto gap-4 pb-8 px-4 no-scrollbar snap-x snap-mandatory">
 
         <!-- Слайд 1 -->
         <div class="min-w-[260px] flex-shrink-0 flex flex-col items-center justify-start gap-4 snap-center">
@@ -638,6 +685,7 @@
           </div>
         </div>
 
+      </div>
       </div>
 
       <!-- ══ DESKTOP: 3 phones in a row ══ -->
@@ -865,7 +913,50 @@
       easing: 'ease-out-cubic',
     });
 
-    // No demo swiper needed, using native horizontal scroll for mobile
+    // Позиции AOS считаются один раз, а вёрстка (Tailwind, шрифты, картинки) может
+    // дозагрузиться позже — пересчитываем, чтобы блоки не оставались скрытыми.
+    window.addEventListener('load', () => AOS.refresh());
+    setTimeout(() => AOS.refresh(), 800);
+
+    // Мобильный слайдер «AR в действии»: листается пальцем, а пока его никто не
+    // трогает — сам переходит к следующему шагу. Чтобы отключить, поставьте false.
+    const DEMO_AUTOPLAY = true;
+    (() => {
+      const slider = document.getElementById('demo-slider');
+      if (!slider) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let visible = false, paused = false, timer = null, idleTimer = null;
+
+      const goNext = () => {
+        const slides = [...slider.children];
+        const center = slider.scrollLeft + slider.clientWidth / 2;
+        let cur = 0, best = Infinity;
+        slides.forEach((el, i) => {
+          const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - center);
+          if (d < best) { best = d; cur = i; }
+        });
+        const next = slides[(cur + 1) % slides.length];
+        slider.scrollTo({ left: next.offsetLeft - (slider.clientWidth - next.offsetWidth) / 2, behavior: 'smooth' });
+      };
+
+      const start = () => {
+        if (!DEMO_AUTOPLAY || reduce || timer || paused || !visible) return;
+        timer = setInterval(goNext, 4000);
+      };
+      const stop = () => { clearInterval(timer); timer = null; };
+      const userTouch = () => {            // палец на слайдере — автопрокрутка замолкает
+        paused = true; stop(); clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { paused = false; start(); }, 8000);
+      };
+
+      ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach(ev =>
+        slider.addEventListener(ev, userTouch, { passive: true }));
+
+      new IntersectionObserver(entries => {
+        visible = entries[0].isIntersecting;
+        visible ? start() : stop();
+      }, { threshold: 0.4 }).observe(slider);
+    })();
 
     // Glass Header scroll effect
     const header = document.querySelector('header');
