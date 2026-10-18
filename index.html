@@ -262,8 +262,9 @@
     /* ─── Demo Section (mobile specific if any) ─── */
 
     /* ─── Demo desktop layout ─── */
+    /* display задаёт Tailwind (hidden md:flex) — здесь его нельзя задавать,
+       иначе правило страницы перебивает «hidden» и ряд виден на телефоне */
     .demo-desktop {
-      display: flex;
       flex-direction: row;
       align-items: flex-start;
       justify-content: center;
@@ -307,10 +308,10 @@
     }
 
     /* Мобильный слайдер «AR в действии»: плавный свайп пальцем */
-    .demo-slider {
+    .demo-slider,
+    .gallery-slider {
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-x: contain;
-      touch-action: pan-x pan-y;
       scroll-padding: 0 16px;
     }
 
@@ -499,7 +500,7 @@
       </div>
 
       <!-- Horizontal Scroll Container -->
-      <div class="flex overflow-x-auto gap-6 pb-8 no-scrollbar snap-x snap-mandatory">
+      <div class="gallery-slider flex overflow-x-auto gap-6 pb-8 no-scrollbar snap-x snap-mandatory">
 
         <!-- Species 1 -->
         <div class="min-w-[300px] md:min-w-[380px] glass-card snap-center" data-aos="zoom-in" data-aos-delay="100">
