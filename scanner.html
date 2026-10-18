@@ -451,10 +451,11 @@
       padding: 10px 20px;
       font-size: .8rem;
       color: #cbd5e1;
-      white-space: nowrap;
+      white-space: normal;
+      text-align: center;
+      width: max-content;
       max-width: calc(100vw - 32px);
-      overflow: hidden;
-      text-overflow: ellipsis;
+      border-radius: 20px;
       pointer-events: none;
       transition: opacity .6s;
     }
@@ -1150,8 +1151,8 @@
         if (!cam || !V.item) return;
         const e = cam.projectionMatrix.elements;
         const Rs = V.item.dim.Rs;
-        const sx = 0.42 * DIST / (Rs * Math.abs(e[0]));
-        const sy = 0.34 * DIST / (Rs * Math.abs(e[5]));
+        const sx = 0.80 * DIST / (Rs * Math.abs(e[0]));
+        const sy = 0.50 * DIST / (Rs * Math.abs(e[5]));
         V.group.scale.setScalar(Math.min(sx, sy) * V.zoom);
       }
 
